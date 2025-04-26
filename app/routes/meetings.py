@@ -15,6 +15,7 @@ from app.schemas.meeting import (
     MeetingDetail,
     MeetingStatus
 )
+from app.services.question_generator import generate_expected_questions
 
 router = APIRouter(tags=["meetings"])
 
@@ -24,6 +25,13 @@ def create_meeting(meeting: MeetingCreate, db: Session = Depends(get_db)):
     Schedule a new meeting.
     """
     try:
+        # Generate expected questions based on job description and candidate info
+        expected_questions = generate_expected_questions(
+            job_desc=meeting.job_desc,
+            experience=str(meeting.experience),
+            skills=meeting.skills
+        )
+        
         db_meeting = MeetingModel(
             date=meeting.date,
             time=meeting.time,
@@ -35,7 +43,8 @@ def create_meeting(meeting: MeetingCreate, db: Session = Depends(get_db)):
             experience=meeting.experience,
             skills=meeting.skills,
             status=DBMeetingStatus.SCHEDULED,
-            is_review_ready=False
+            is_review_ready=False,
+            expected_questions=expected_questions
         )
         db.add(db_meeting)
         db.commit()
