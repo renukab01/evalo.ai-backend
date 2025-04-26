@@ -184,10 +184,11 @@ Provide a detailed analysis in the following JSON format WITHOUT ANY MARKDOWN FO
   "confidence": {{
     "score": 7
   }},
-  "speech_patterns": Description of speech patterns
+  "speech_patterns": "Description of speech patterns"
 }}
 
 Score both clarity and confidence on a scale of 1-10, where 1 is very poor and 10 is excellent.
+Do not focus on the grammar of the transcript, only the clarity and confidence of the speaker.
 THE RESPONSE MUST BE VALID JSON WITH NO MARKDOWN FORMATTING OR TEXT OUTSIDE THE JSON OBJECT.
 """
     
@@ -220,7 +221,7 @@ THE RESPONSE MUST BE VALID JSON WITH NO MARKDOWN FORMATTING OR TEXT OUTSIDE THE 
         return {
             "clarity": str(result_json["clarity"]["score"]),
             "confidence": str(result_json["confidence"]["score"]),
-            "speech_patterns": ", ".join(result_json["speech_patterns"])
+            "speech_patterns": str(result_json["speech_patterns"]),
         }
     except Exception as e:
         print(f"❌ Error analyzing voice or parsing response: {e}")

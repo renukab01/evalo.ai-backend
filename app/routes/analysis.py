@@ -37,7 +37,8 @@ def get_meeting_analysis(meeting_id: int = Path(..., title="The ID of the meetin
             meeting.overall_fit,
             meeting.ai_feedback,
             meeting.what_went_well,
-            meeting.area_to_improve
+            meeting.area_to_improve,
+            meeting.speech_patterns
         ]):
             return ErrorResponse(
                 status=404,
@@ -57,7 +58,8 @@ def get_meeting_analysis(meeting_id: int = Path(..., title="The ID of the meetin
                 overall_fit=meeting.overall_fit,
                 ai_feedback=meeting.ai_feedback,
                 what_went_well=meeting.what_went_well,
-                area_to_improve=meeting.area_to_improve
+                area_to_improve=meeting.area_to_improve,
+                speech_patterns=meeting.speech_patterns
             )
         )
     

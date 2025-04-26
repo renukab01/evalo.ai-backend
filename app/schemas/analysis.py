@@ -12,6 +12,7 @@ class AnalysisData(BaseModel):
     ai_feedback: Optional[str] = None
     what_went_well: Optional[str] = None
     area_to_improve: Optional[str] = None
+    speech_patterns: Optional[str] = None
 
 class AnalysisResponse(BaseModel):
     status: int
