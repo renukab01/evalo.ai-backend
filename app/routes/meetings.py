@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response, Path
 from sqlalchemy.orm import Session
 from typing import Dict, Optional, List, Union
 from sqlalchemy.exc import SQLAlchemyError
+import json
 
 from app.database.database import get_db
 from app.models.meeting import Meeting as MeetingModel, MeetingStatus as DBMeetingStatus
@@ -26,7 +27,7 @@ def create_meeting(meeting: MeetingCreate, db: Session = Depends(get_db)):
     """
     try:
         # Generate expected questions based on job description and candidate info
-        expected_questions = generate_expected_questions(
+        expected_questions_json = generate_expected_questions(
             job_desc=meeting.job_desc,
             experience=str(meeting.experience),
             skills=meeting.skills
@@ -44,7 +45,7 @@ def create_meeting(meeting: MeetingCreate, db: Session = Depends(get_db)):
             skills=meeting.skills,
             status=DBMeetingStatus.SCHEDULED,
             is_review_ready=False,
-            expected_questions=expected_questions
+            expected_questions=expected_questions_json
         )
         db.add(db_meeting)
         db.commit()

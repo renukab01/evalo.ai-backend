@@ -1,6 +1,8 @@
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
+import json
+import re
 
 # Load environment variables
 load_dotenv()
@@ -14,7 +16,7 @@ if not GENAI_API_KEY:
 # Configure Gemini AI
 genai.configure(api_key=GENAI_API_KEY)
 
-def get_suggested_questions(job_desc: str, role: str, experience: str, skills: str, transcript: str):
+def get_suggested_questions(job_desc: str, role: str, experience: str, skills: str, already_suggested_questions: str, transcript: str = None):
     """Get suggested questions based on the interview transcript and job details."""
     
     # Construct job description from inputs
@@ -34,14 +36,23 @@ The questions should be one of these types:
 3. A cross-question if something was answered incompletely or needs clarification
 4. A question to explore something the candidate mentioned but didn't explain in detail
 
-The goal of the question should be to evaluate the candidate.
+The goal of the questions should be to evaluate the candidate. Ask simple questions on technical topics that are easy to answer. Keep your question short and concise.
 
 Job Description:
 {jd}
 Interview Transcript:
 {transcript}
 
-Provide exactly three numbered questions, one of each type mentioned above. Format your response as three numbered questions only, without any additional text.
+DO NOT INCLUDE QUESTIONS THAT ARE ALREADY SUGGESTED.
+
+DO NOT include below questions in your response:
+{already_suggested_questions}
+
+Return your response as a JSON array of strings, with each string being a question. 
+Format your response like this:
+["Question 1 text", "Question 2 text", "Question 3 text"]
+
+Ensure your response is valid JSON that can be parsed directly. Do not include any text before or after the JSON array.
 """
 
     try:
@@ -50,9 +61,31 @@ Provide exactly three numbered questions, one of each type mentioned above. Form
 
         # Generate the response
         response = client.generate_content(prompt)
+        response_text = response.text.strip()
         
-        # Return the response text
-        return response.text
+        # Clean the response to ensure it's valid JSON
+        # Remove any markdown code block formatting if present
+        response_text = re.sub(r'```json', '', response_text)
+        response_text = re.sub(r'```', '', response_text)
+        response_text = response_text.strip()
+        
+        # Parse the response as JSON to validate it
+        try:
+            questions = json.loads(response_text)
+            return json.dumps(questions)  # Return valid JSON string
+        except json.JSONDecodeError:
+            # If not valid JSON, attempt to parse numbered questions and convert to JSON
+            print("Response was not valid JSON, attempting to parse numbered format...")
+            numbered_pattern = r'\d+\.\s+(.*?)(?=\d+\.\s+|$)'
+            matches = re.findall(numbered_pattern, response_text, re.DOTALL)
+            
+            if matches:
+                questions = [q.strip() for q in matches]
+                return json.dumps(questions)
+            else:
+                # If all parsing attempts fail, return the raw text as a single item
+                return json.dumps([response_text])
+            
     except Exception as e:
         print(f"Error getting suggestions: {e}")
         raise Exception(f"Failed to generate suggestions: {str(e)}") 

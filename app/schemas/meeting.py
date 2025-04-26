@@ -1,7 +1,8 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, validator, Field
 from typing import Optional, List, Union, Any
 from datetime import date, time
 from enum import Enum
+import json
 
 class MeetingStatus(str, Enum):
     SCHEDULED = "Scheduled"
@@ -56,7 +57,7 @@ class MeetingDetail(BaseModel):
     is_review_ready: bool
     audio: Optional[str] = None
     transcript: Optional[str] = None
-    expected_questions: Optional[str] = None
+    expected_questions: Optional[Union[List[str], str]] = None
     confidence: Optional[str] = None
     clarity: Optional[str] = None
     ques_count: Optional[str] = None
@@ -68,6 +69,19 @@ class MeetingDetail(BaseModel):
     area_to_improve: Optional[str] = None
     ai_feedback: Optional[str] = None
     speech_patterns: Optional[str] = None
+    
+    @validator('expected_questions')
+    def validate_expected_questions(cls, v):
+        if not v:
+            return v
+        if isinstance(v, list):
+            return v
+        try:
+            # Try to parse as JSON
+            return json.loads(v)
+        except (json.JSONDecodeError, TypeError):
+            # If it's not valid JSON, return as is
+            return v
 
 class MeetingDetailResponse(BaseResponse):
     meeting: MeetingDetail

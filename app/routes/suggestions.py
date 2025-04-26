@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Union
+from typing import Union, List
 from sqlalchemy.exc import SQLAlchemyError
+import json
 
 from app.database.database import get_db
 from app.models.meeting import Meeting as MeetingModel
@@ -24,34 +25,51 @@ def generate_suggestions(request: SuggestionRequest, db: Session = Depends(get_d
                 errors=f"Meeting with ID {request.id} not found"
             )
         
-        # If transcript is provided in the request and the meeting has no transcript, update it
-        if request.transcript and not meeting.transcript:
-            meeting.transcript = request.transcript
-            db.commit()
-        # If neither has a transcript, return an error
-        else:
-            return ErrorResponse(
-                status=400, 
-                errors="No transcript provided"
-            )
+        # Get transcript from request or meeting
+        transcript = ""
+        if request.transcript:
+            transcript = request.transcript
+            # If meeting has no transcript, update it
+            if not meeting.transcript:
+                meeting.transcript = request.transcript
+                db.commit()
+        elif meeting.transcript:
+            transcript = meeting.transcript
         
-        # Generate suggestions using AI
-        suggested_questions = get_suggested_questions(
-            job_desc=request.job_desc,
-            role=request.role,
-            experience=request.experience,
-            skills=request.skills,
-            transcript=request.transcript
+        # Generate suggestions using AI (returns JSON string)
+        suggested_questions_json = get_suggested_questions(
+            job_desc=meeting.job_desc if not request.job_desc else request.job_desc,
+            role=meeting.role if not request.role else request.role,
+            experience=str(meeting.experience) if not request.experience else str(request.experience),
+            skills=meeting.skills if not request.skills else request.skills,
+            already_suggested_questions=meeting.expected_questions if meeting.expected_questions else "",
+            transcript=transcript
         )
         
         # Update the meeting record with the expected questions
-        meeting.expected_questions = suggested_questions
+        if meeting.expected_questions:
+            # Try to parse existing questions as JSON, if possible
+            try:
+                existing_questions = json.loads(meeting.expected_questions)
+                new_questions = json.loads(suggested_questions_json)
+                
+                # Combine the question arrays
+                combined_questions = existing_questions + new_questions
+                
+                # Store the combined questions
+                meeting.expected_questions = json.dumps(combined_questions)
+            except json.JSONDecodeError:
+                # If existing questions aren't in JSON format, store them separately
+                meeting.expected_questions = f"{meeting.expected_questions}\n\n--- Additional Questions ---\n{suggested_questions_json}"
+        else:
+            meeting.expected_questions = suggested_questions_json
+            
         db.commit()
         
-        # Return the suggestions
+        # Return the suggestions as parsed JSON for the API response
         return SuggestionResponse(
             status=200,
-            expected_questions=suggested_questions
+            expected_questions=json.loads(suggested_questions_json)
         )
     
     except SQLAlchemyError as e:
