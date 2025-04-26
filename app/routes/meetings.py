@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Path
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Path, Query
 from sqlalchemy.orm import Session
 from typing import Dict, Optional, List, Union
 from sqlalchemy.exc import SQLAlchemyError
@@ -64,6 +64,54 @@ def get_all_meetings(db: Session = Depends(get_db)):
     """
     try:
         db_meetings = db.query(MeetingModel).all()
+        meeting_list: List[MeetingListItem] = []
+        
+        for meeting in db_meetings:
+            # Convert DB enum to Pydantic enum
+            status_value = meeting.status.value if meeting.status else None
+            
+            meeting_list.append(
+                MeetingListItem(
+                    id=meeting.id,
+                    date=meeting.date,
+                    time=meeting.time,
+                    name=meeting.name,
+                    interviewer_name=meeting.interviewer_name,
+                    meet_link=meeting.meet_link,
+                    status=status_value,
+                    role=meeting.role
+                )
+            )
+        
+        return MeetingsResponse(
+            status=200,
+            meetings=meeting_list
+        )
+    except Exception as e:
+        return ErrorResponse(status=500, errors=f"Internal server error: {str(e)}")
+
+@router.get("/meetings/by-status", response_model=Union[MeetingsResponse, ErrorResponse])
+def get_meetings_by_status(
+    status: str = Query(..., description="Filter meetings by status (Scheduled, In Progress, Completed, Cancelled)"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get meetings filtered by status.
+    """
+    try:
+        # Validate the status parameter
+        try:
+            # Convert string status to enum
+            db_status = DBMeetingStatus(status)
+        except ValueError:
+            return ErrorResponse(
+                status=400, 
+                errors=f"Invalid status. Must be one of: {', '.join([s.value for s in DBMeetingStatus])}"
+            )
+        
+        # Query meetings with the specified status
+        db_meetings = db.query(MeetingModel).filter(MeetingModel.status == db_status).all()
+        
         meeting_list: List[MeetingListItem] = []
         
         for meeting in db_meetings:

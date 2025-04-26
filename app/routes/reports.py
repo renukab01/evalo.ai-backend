@@ -4,7 +4,7 @@ from typing import Union
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.database.database import get_db
-from app.models.meeting import Meeting as MeetingModel
+from app.models.meeting import Meeting as MeetingModel, MeetingStatus as DBMeetingStatus
 from app.schemas.report import ReportRequest, ReportResponse, ErrorResponse
 from app.utils.report_generator import generate_interview_report
 from app.utils.voice_analyzer import analyze_voice
@@ -64,9 +64,12 @@ def process_report_generation(meeting_id: int, audio_url: str, db_session):
         # Mark the review as ready
         meeting.is_review_ready = True
         
+        # Set meeting status to COMPLETED
+        meeting.status = DBMeetingStatus.COMPLETED
+        
         # Save to database
         db_session.commit()
-        print(f"Report generation completed for meeting ID {meeting_id}")
+        print(f"Report generation completed for meeting ID {meeting_id}. Status set to COMPLETED.")
     except Exception as e:
         print(f"Error in background task: {str(e)}")
         db_session.rollback()
